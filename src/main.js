@@ -1,4 +1,8 @@
-import { BasicPitch, noteFramesToTime, outputToNotesPoly } from "@spotify/basic-pitch";
+import {
+  BasicPitch,
+  noteFramesToTime,
+  outputToNotesPoly,
+} from "@spotify/basic-pitch";
 import p5 from "p5";
 import * as tf from "@tensorflow/tfjs";
 
@@ -18,7 +22,7 @@ new p5((p) => {
     p.text(`This is file's type is: ${file.type}`, 10, 10, 80, 80);
     if (file.type == "audio") {
       audioFile = file;
-      runPipeline(audioFile)
+      runPipeline(audioFile);
     }
   }
 
@@ -26,7 +30,6 @@ new p5((p) => {
     const arrayBuffer = await file.file.arrayBuffer();
     context = context ?? new AudioContext();
     return await context.decodeAudioData(arrayBuffer);
-
   }
 
   async function resampleAudioBuffer(audioBuffer, targetSampleRate) {
@@ -51,21 +54,21 @@ new p5((p) => {
 
     const bpModel = await tf.loadGraphModel("/model/model.json");
     basicPitch = new BasicPitch(bpModel);
-    return basicPitch
+    return basicPitch;
   }
 
   async function extractNoteEvents(resampledBuffer) {
     const bp = await getBasicPitch();
-  
-    const allFrames = []
-    const allOnsets = []
+
+    const allFrames = [];
+    const allOnsets = [];
     await bp.evaluateModel(
       resampledBuffer,
       (framesChunk, onsetsChunk) => {
         for (let frame of framesChunk) {
           allFrames.push(frame); //duration/sustain of note
         }
-        for (let onset of onsetsChunk){
+        for (let onset of onsetsChunk) {
           allOnsets.push(onset); //when a new note begins
         }
       },
@@ -74,27 +77,25 @@ new p5((p) => {
       }
     );
 
-   return noteFramesToTime(outputToNotesPoly(allFrames, allOnsets, 0.25, 0.25, 5)); //outputs cool things!! most importantly pitchMidi!
-   
+    return noteFramesToTime(
+      outputToNotesPoly(allFrames, allOnsets, 0.25, 0.25, 5)
+    ); //outputs cool things!! most importantly pitchMidi!
   }
-   
+
   function playAudioBuffer(audioBuffer) {
     context = context ?? new AudioContext();
     const source = context.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(context.destination);
     source.start();
-    return source
+    return source;
   }
-
 
   async function runPipeline(file) {
     const originalBuffer = await loadAudioBufferFromFile(file);
     const resampledBuffer = await resampleAudioBuffer(originalBuffer, 22050);
-    const noteEvents = await extractNoteEvents(resampledBuffer)
-    console.log(noteEvents)
-    playAudioBuffer(originalBuffer) //TODO: add onClick event here or smth similar for optional playback
-
+    const noteEvents = await extractNoteEvents(resampledBuffer);
+    console.log(noteEvents);
+    playAudioBuffer(originalBuffer); //TODO: add onClick event here or smth similar for optional playback
   }
-
 });
