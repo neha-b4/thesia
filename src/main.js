@@ -1,4 +1,4 @@
-import { BasicPitch } from "@spotify/basic-pitch";
+import { BasicPitch, noteFramesToTime, outputToNotesPoly } from "@spotify/basic-pitch";
 import p5 from "p5";
 import * as tf from "@tensorflow/tfjs";
 
@@ -53,17 +53,27 @@ new p5((p) => {
       basicPitch = new BasicPitch(bpModel);
     }
     console.log(resampledBuffer.numberOfChannels);
+
+    const allFrames = []
+    const allOnsets = []
     const evaluate = await basicPitch.evaluateModel(
       resampledBuffer,
-      (frames, onsets, contours) => {
-        console.log(frames); //duration of note
-        console.log(onsets); //when a new note begins
-        console.log(contours);
+      (framesChunk, onsetsChunk) => {
+        for (let frame of framesChunk) {
+          allFrames.push(frame); //duration/sustain of note
+        }
+        for (let onset of onsetsChunk){
+          allOnsets.push(onset); //when a new note begins
+        }
       },
       (percent) => {
-        console.log(Math.round(percent * 100));
+        console.log("percent" + Math.round(percent * 100));
       }
     );
-    console.log(evaluate);
+
+    const noteEvents = noteFramesToTime(outputToNotesPoly(allFrames, allOnsets, 0.25, 0.25, 5))
+    console.log(noteEvents) //outputs cool things!! most importantly pitchMidi!
+
+
   }
 });
