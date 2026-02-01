@@ -3,10 +3,12 @@ import p5 from "p5";
 import * as tf from "@tensorflow/tfjs";
 
 new p5((p) => {
-  let audio;
+  let audioFile;
   let basicPitch;
+  let context;
 
   p.setup = () => {
+    p.createCanvas(400, 200);
     const input = p.createFileInput(displayType);
     input.position(0, 100);
     console.log("ready!");
@@ -15,9 +17,16 @@ new p5((p) => {
   function displayType(file) {
     p.text(`This is file's type is: ${file.type}`, 10, 10, 80, 80);
     if (file.type == "audio") {
-      audio = file;
-      playSound();
+      audioFile = file;
+      runPipeline(audioFile)
     }
+  }
+
+  async function loadAudioBufferFromFile(file) {
+    const arrayBuffer = await file.file.arrayBuffer();
+    context = context ?? new AudioContext();
+    return await context.decodeAudioData(arrayBuffer);
+
   }
 
   async function resampleAudioBuffer(audioBuffer, targetSampleRate) {
@@ -34,29 +43,23 @@ new p5((p) => {
     source.connect(offlineCtx.destination);
     source.start(0);
 
-    const resampledBuffer = await offlineCtx.startRendering();
-    return resampledBuffer;
+    return await offlineCtx.startRendering();
   }
 
-  async function playSound() {
-    const arrayBuffer = await audio.file.arrayBuffer();
-    const context = new AudioContext();
-    const audioBuffer = await context.decodeAudioData(arrayBuffer);
-    const resampledBuffer = await resampleAudioBuffer(audioBuffer, 22050);
-    const source = context.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(context.destination);
-    source.start();
+  async function getBasicPitch() {
+    if (basicPitch) return basicPitch;
 
-    if (!basicPitch) {
-      const bpModel = await tf.loadGraphModel("/model/model.json");
-      basicPitch = new BasicPitch(bpModel);
-    }
-    console.log(resampledBuffer.numberOfChannels);
+    const bpModel = await tf.loadGraphModel("/model/model.json");
+    basicPitch = new BasicPitch(bpModel);
+    return basicPitch
+  }
 
+  async function extractNoteEvents(resampledBuffer) {
+    const bp = await getBasicPitch();
+  
     const allFrames = []
     const allOnsets = []
-    const evaluate = await basicPitch.evaluateModel(
+    await bp.evaluateModel(
       resampledBuffer,
       (framesChunk, onsetsChunk) => {
         for (let frame of framesChunk) {
@@ -67,13 +70,31 @@ new p5((p) => {
         }
       },
       (percent) => {
-        console.log("percent" + Math.round(percent * 100));
+        console.log("percent: " + Math.round(percent * 100) + "%");
       }
     );
 
-    const noteEvents = noteFramesToTime(outputToNotesPoly(allFrames, allOnsets, 0.25, 0.25, 5))
-    console.log(noteEvents) //outputs cool things!! most importantly pitchMidi!
+   return noteFramesToTime(outputToNotesPoly(allFrames, allOnsets, 0.25, 0.25, 5)); //outputs cool things!! most importantly pitchMidi!
+   
+  }
+   
+  function playAudioBuffer(audioBuffer) {
+    context = context ?? new AudioContext();
+    const source = context.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(context.destination);
+    source.start();
+    return source
+  }
 
+
+  async function runPipeline(file) {
+    const originalBuffer = await loadAudioBufferFromFile(file);
+    const resampledBuffer = await resampleAudioBuffer(originalBuffer, 22050);
+    const noteEvents = await extractNoteEvents(resampledBuffer)
+    console.log(noteEvents)
+    playAudioBuffer(originalBuffer) //TODO: add onClick event here or smth similar for optional playback
 
   }
+
 });
