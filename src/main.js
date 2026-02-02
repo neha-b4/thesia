@@ -12,15 +12,20 @@ new p5((p) => {
   let context;
   // C MAJOR
   const thesiaMapping = {
-    '0': "#de2f23", '1' : "#9C4C39", '2' : "#d1ac27", '3' : '#5C994E', "4" : '#5daf42', "5" : "#b37f45", "6" : "#857168", "7" : "#3eb8d2", "8" : "#5368A3", "9" : "#b25c89", "10" : "#93729F", "11" : "#d29dac"
-  }
-
-  // todooo: thesia logic
-  for (note in noteEvents) {
-    pitchClass = note.pitchMidi % 12
-    color = thesiaMapping[pitchClass]
-  }
-
+    0: "#de2f23",
+    1: "#9C4C39",
+    2: "#d1ac27",
+    3: "#5C994E",
+    4: "#5daf42",
+    5: "#b37f45",
+    6: "#857168",
+    7: "#3eb8d2",
+    8: "#5368A3",
+    9: "#b25c89",
+    10: "#93729F",
+    11: "#d29dac",
+  };
+  let coloredNotes = [];
 
   p.setup = () => {
     p.createCanvas(400, 200);
@@ -30,6 +35,7 @@ new p5((p) => {
   };
 
   function displayType(file) {
+    p.clear()
     p.text(`This is file's type is: ${file.type}`, 10, 10, 80, 80);
     if (file.type == "audio") {
       audioFile = file;
@@ -107,6 +113,16 @@ new p5((p) => {
     const resampledBuffer = await resampleAudioBuffer(originalBuffer, 22050);
     const noteEvents = await extractNoteEvents(resampledBuffer);
     console.log(noteEvents);
+    for (const note of noteEvents) {
+      let pitchClass = note.pitchMidi % 12;
+      let color = thesiaMapping[pitchClass];
+      let startTime = note.startTimeSeconds;
+      let endTime = note.startTimeSeconds + note.durationSeconds;
+      coloredNotes.push({pitchClass, color, startTime, endTime});
+    }
+
+    console.log(coloredNotes);
     playAudioBuffer(originalBuffer); //TODO: add onClick event here or smth similar for optional playback
+    // todooo: thesia logic
   }
 });
