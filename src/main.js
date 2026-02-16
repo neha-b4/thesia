@@ -10,6 +10,9 @@ new p5((p) => {
   let audioFile;
   let basicPitch;
   let context;
+  let playStart;
+  let isPlaying;
+
   // C MAJOR
   const thesiaMapping = {
     0: "#de2f23",
@@ -33,6 +36,19 @@ new p5((p) => {
     input.position(0, 100);
     console.log("ready!");
   };
+
+  p.draw = () => {
+    if (!isPlaying){
+      return
+    }
+    const t = context.currentTime - playStart
+    p.clear()
+    for (let note of coloredNotes) {
+      if (note.startTime <= t && t < note.endTime) {
+        p.circle(50, 50, 25);
+      }
+    }
+  }
 
   function displayType(file) {
     p.clear()
@@ -102,9 +118,12 @@ new p5((p) => {
   function playAudioBuffer(audioBuffer) {
     context = context ?? new AudioContext();
     const source = context.createBufferSource();
+    playStart = context.currentTime //we need this for circlez
+    isPlaying = true //true bc this is when playback begins
     source.buffer = audioBuffer;
     source.connect(context.destination);
     source.start();
+    
     return source;
   }
 
